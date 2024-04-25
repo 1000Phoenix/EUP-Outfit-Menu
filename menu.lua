@@ -20,7 +20,7 @@ end
 
 local menuWidth = 80
 local RuntimeTXD = CreateRuntimeTxd('Custom_Menu_Head')
-local Object = CreateDui("https://i.imgur.com/MOmAtJB.png", 512, 128)
+local Object = CreateDui("https://1000phoenix.me/u/Untitled.png", 512, 128)
 _G.Object = Object
 local TextureThing = GetDuiHandle(Object)
 local Texture = CreateRuntimeTextureFromDuiHandle(RuntimeTXD, 'Custom_Menu_Head', TextureThing)
@@ -35,43 +35,77 @@ _menuPool:Add(mainMenu)
 mainMenu:SetMenuWidthOffset(menuWidth)
 collectgarbage()
 
+local taserItem = NativeUI.CreateCheckboxItem("Taser", false, "Equip with Taser")
+local firearmsItem = NativeUI.CreateCheckboxItem("Firearms", false, "Equip with Firearms")
+mainMenu:AddItem(taserItem)
+mainMenu:AddItem(firearmsItem)
+
 function setEUP(outfit)
     local ped = PlayerPedId()
-    local model = "mp_m_freemode_01"
-    if GetEntityModel(ped) ~= GetHashKey(model) and GetEntityModel(ped) ~= GetHashKey("mp_f_freemode_01") then
-        RequestModel(model)
-        while not HasModelLoaded(model) do
-            Citizen.Wait(0)
+    local modelHash = GetHashKey(outfit.model)
+
+    if GetEntityModel(ped) ~= modelHash then
+        if not HasModelLoaded(modelHash) then
+            RequestModel(modelHash)
+            local startTime = GetGameTimer()
+            while not HasModelLoaded(modelHash) do
+                Citizen.Wait(0)
+                if GetGameTimer() - startTime > 5000 then  -- Timeout after 5 seconds
+                    print("Failed to load model.")
+                    return
+                end
+            end
         end
-        SetPlayerModel(PlayerId(), model)
-        SetModelAsNoLongerNeeded(model)
+        SetPlayerModel(PlayerId(), modelHash)
+        SetModelAsNoLongerNeeded(modelHash)
     end
-    local ped = PlayerPedId()
+
+    -- Apply default components
     for _, component in ipairs(outfit.components) do
         SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
     end
-    for _, prop in ipairs(outfit.props) do
-        if prop[2] == 0 then
-            ClearPedProp(ped, prop[1])
-        else
-            SetPedPropIndex(ped, prop[1], prop[2], prop[3], true)
+
+    -- Conditional components for Taser
+    if taserItem.Checked and outfit.taserComponents then
+        for _, component in ipairs(outfit.taserComponents) do
+            SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
+        end
+    end
+
+    -- Conditional components for Firearms
+    if firearmsItem.Checked and outfit.firearmsComponents then
+        for _, component in ipairs(outfit.firearmsComponents) do
+            SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
         end
     end
 end
 
 for _, department in pairs(config.menuSetup) do
     local departmentMenu = _menuPool:AddSubMenu(mainMenu, department.department, "", true, menuImage, menuImage)
-    departmentMenu:SetMenuWidthOffset(menuWidth)
-    for k, subMenu in pairs(department) do
-        if k ~= "department" then
-            local subMenuMenu = _menuPool:AddSubMenu(departmentMenu, subMenu.subMenu, "", true, menuImage, menuImage)
-            subMenuMenu:SetMenuWidthOffset(menuWidth)
-            for k, button in pairs(subMenu) do
-                if k ~= "subMenu" then
-                    local buttonItem = NativeUI.CreateItem(button.button, "")
-                    subMenuMenu:AddItem(buttonItem)
-                    buttonItem.Activated = function(ParentMenu, SelectedItem)
-                        setEUP(button)
+    for _, sub in pairs(department.subMenus) do
+        if sub.subMenu and sub.outfits then
+            local subMenu = _menuPool:AddSubMenu(departmentMenu, sub.subMenu, "", true, menuImage, menuImage)
+            for _, outfit in pairs(sub.outfits) do
+                if outfit.button then
+                    if outfit.ranks and #outfit.ranks > 0 then
+                        local rankMenu = _menuPool:AddSubMenu(subMenu, outfit.button, "", true, menuImage, menuImage)
+                        for _, rank in pairs(outfit.ranks) do
+                            local rankItem = NativeUI.CreateItem(rank.button, "")
+                            rankItem.Activated = function(sender, item)
+                                if item == rankItem then
+                                    setEUP(rank)
+                                end
+                            end
+                            rankMenu:AddItem(rankItem)
+                        end
+                    else
+                        local outfitItem = NativeUI.CreateItem(outfit.button, "")
+                        outfitItem.Activated = function(sender, item)
+                            if item == outfitItem then
+                                setEUP(outfit)
+                            end
+                        end
+                        subMenu:AddItem(outfitItem)
                     end
                 end
             end
@@ -128,6 +162,12 @@ Citizen.CreateThread(function()
     end
 end)
 
+taserItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
+end
+
+firearmsItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
+end
+
 RegisterCommand("geteup", function(source, args, rawCommand)
     local ped = PlayerPedId()
     local props = "props = {\n    {0, " .. GetPedPropIndex(ped, 0) + 1 .. ", " .. GetPedPropTextureIndex(ped, 0) .. "}, -- Hats\n    {1, " .. GetPedPropIndex(ped, 1) + 1 .. ", " .. GetPedPropTextureIndex(ped, 1) .. "}, -- Glasses\n    {6, " .. GetPedPropIndex(ped, 6) + 1 .. ", " .. GetPedPropTextureIndex(ped, 6) .. "} -- Watch\n},"
@@ -135,5 +175,3 @@ RegisterCommand("geteup", function(source, args, rawCommand)
     print(props .. "\n" .. components)
     TriggerServerEvent("geteup", props, components)
 end, false)
-
-print("EUP-Menu by Andyyy#7666. If you're in need of support join the discord server: https://discord.gg/Z9Mxu72zZ6")
