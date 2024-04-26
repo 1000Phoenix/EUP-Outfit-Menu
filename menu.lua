@@ -58,6 +58,13 @@ function setEUP(outfit)
         SetModelAsNoLongerNeeded(modelHash)
     end
 
+    -- Apply default props
+    if outfit.props then
+        for _, prop in ipairs(outfit.props) do
+            SetPedPropIndex(ped, prop[1], prop[2], prop[3], false)
+        end
+    end
+
     -- Apply default components
     for _, component in ipairs(outfit.components) do
         SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
