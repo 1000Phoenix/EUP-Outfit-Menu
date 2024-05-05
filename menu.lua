@@ -106,7 +106,6 @@ for _, orgName in ipairs(sortedOrgNames) do
         for categoryName, componentKey in pairs(orgData.extraCategories) do
             local checkboxItem = NativeUI.CreateCheckboxItem(categoryName, false, "Equip with " .. categoryName)
             checkboxItem.CheckboxEvent = function(sender, item, checked)
-                print("Checkbox changed:", categoryName, checked)
                 categoryItems[componentKey].Checked = checked
             end
             orgMenu:AddItem(checkboxItem)
