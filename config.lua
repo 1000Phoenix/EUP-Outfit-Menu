@@ -14,6 +14,7 @@ config = {
             extraCategories = {
                 Taser = "taserComponents",
                 Firearms = "firearmsComponents"
+                AlternateHat = "alternatehatProps"
             },
             departments = {
                 {

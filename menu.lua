@@ -37,15 +37,12 @@ function setEUP(outfit)
     local modelHash = GetHashKey(outfit.model)
 
     if GetEntityModel(ped) ~= modelHash then
-        if not HasModelLoaded(modelHash) then
-            RequestModel(modelHash)
-            local startTime = GetGameTimer()
-            while not HasModelLoaded(modelHash) do
-                Citizen.Wait(0)
-                if GetGameTimer() - startTime > 5000 then  -- Timeout after 5 seconds
-                    print("Failed to load model.")
-                    return
-                end
+        RequestModel(modelHash)
+        local startTime = GetGameTimer()
+        while not HasModelLoaded(modelHash) do
+            Citizen.Wait(0)
+            if GetGameTimer() - startTime > 5000 then
+                return
             end
         end
         SetPlayerModel(PlayerId(), modelHash)
@@ -64,11 +61,19 @@ function setEUP(outfit)
         SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
     end
 
-    -- Apply conditional components based on extra categories
+    -- Apply conditional components and props
     for componentKey, checkboxItem in pairs(categoryItems) do
-        if checkboxItem.Checked and outfit[componentKey] then
-            for _, component in ipairs(outfit[componentKey]) do
-                SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
+        if checkboxItem.Checked then
+            if outfit[componentKey] then
+                for _, component in ipairs(outfit[componentKey]) do
+                    SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
+                end
+            end
+            local propKey = componentKey:find("Props") and componentKey or (componentKey .. "Props")
+            if outfit[propKey] then
+                for _, prop in ipairs(outfit[propKey]) do
+                    SetPedPropIndex(ped, prop[1], prop[2], prop[3], false)
+                end
             end
         end
     end
@@ -101,6 +106,7 @@ for _, orgName in ipairs(sortedOrgNames) do
         for categoryName, componentKey in pairs(orgData.extraCategories) do
             local checkboxItem = NativeUI.CreateCheckboxItem(categoryName, false, "Equip with " .. categoryName)
             checkboxItem.CheckboxEvent = function(sender, item, checked)
+                print("Checkbox changed:", categoryName, checked)
                 categoryItems[componentKey].Checked = checked
             end
             orgMenu:AddItem(checkboxItem)
