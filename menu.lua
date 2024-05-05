@@ -33,10 +33,8 @@ _menuPool:Add(mainMenu)
 mainMenu:SetMenuWidthOffset(menuWidth)
 collectgarbage()
 
-local taserItem = NativeUI.CreateCheckboxItem("Taser", false, "Equip with Taser")
-local firearmsItem = NativeUI.CreateCheckboxItem("Firearms", false, "Equip with Firearms")
-mainMenu:AddItem(taserItem)
-mainMenu:AddItem(firearmsItem)
+local taserItem = nil
+local firearmsItem = nil
 
 function setEUP(outfit)
     local ped = PlayerPedId()
@@ -85,35 +83,68 @@ function setEUP(outfit)
     end
 end
 
-for _, department in pairs(config.menuSetup) do
-    local departmentMenu = _menuPool:AddSubMenu(mainMenu, department.department, "", true, menuImage, menuImage)
-    for _, sub in pairs(department.subMenus) do
-        if sub.subMenu and sub.outfits then
+-- Set order for orgs
+local function getOrgOrder(orgName)
+    for index, name in ipairs(config.organizationsOrder) do
+        if name == orgName then
+            return index
+        end
+    end
+    return 1000
+end
+
+
+local sortedOrgNames = {}
+for orgName in pairs(config.organizations) do
+    table.insert(sortedOrgNames, orgName)
+end
+
+
+table.sort(sortedOrgNames, function(a, b)
+    return getOrgOrder(a) < getOrgOrder(b)
+end)
+
+for _, orgName in ipairs(sortedOrgNames) do
+    local orgData = config.organizations[orgName]
+    local orgMenu = _menuPool:AddSubMenu(mainMenu, orgName, "", true, menuImage, menuImage)
+    for _, department in pairs(orgData.departments) do
+        local departmentMenu = _menuPool:AddSubMenu(orgMenu, department.department, "", true, menuImage, menuImage)
+        for _, sub in pairs(department.subMenus) do
             local subMenu = _menuPool:AddSubMenu(departmentMenu, sub.subMenu, "", true, menuImage, menuImage)
             for _, outfit in pairs(sub.outfits) do
-                if outfit.button then
-                    if outfit.ranks and #outfit.ranks > 0 then
-                        local rankMenu = _menuPool:AddSubMenu(subMenu, outfit.button, "", true, menuImage, menuImage)
-                        for _, rank in pairs(outfit.ranks) do
-                            local rankItem = NativeUI.CreateItem(rank.button, "")
-                            rankItem.Activated = function(sender, item)
-                                if item == rankItem then
-                                    setEUP(rank)
-                                end
-                            end
-                            rankMenu:AddItem(rankItem)
-                        end
-                    else
-                        local outfitItem = NativeUI.CreateItem(outfit.button, "")
-                        outfitItem.Activated = function(sender, item)
-                            if item == outfitItem then
-                                setEUP(outfit)
+                if outfit.ranks and #outfit.ranks > 0 then
+                    local rankMenu = _menuPool:AddSubMenu(subMenu, outfit.button, "", true, menuImage, menuImage)
+                    for _, rank in pairs(outfit.ranks) do
+                        local rankItem = NativeUI.CreateItem(rank.button, "")
+                        rankItem.Activated = function(sender, item)
+                            if item == rankItem then
+                                setEUP(rank)
                             end
                         end
-                        subMenu:AddItem(outfitItem)
+                        rankMenu:AddItem(rankItem)
                     end
+                else
+                    local outfitItem = NativeUI.CreateItem(outfit.button, "")
+                    outfitItem.Activated = function(sender, item)
+                        if item == outfitItem then
+                            setEUP(outfit)
+                        end
+                    end
+                    subMenu:AddItem(outfitItem)
                 end
             end
+        end
+    end
+    if orgName == "Police" then
+        taserItem = NativeUI.CreateCheckboxItem("Taser", false, "Equip with Taser")
+        firearmsItem = NativeUI.CreateCheckboxItem("Firearms", false, "Equip with Firearms")
+        
+        orgMenu:AddItem(taserItem)
+        orgMenu:AddItem(firearmsItem)
+
+        taserItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
+        end
+        firearmsItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
         end
     end
 end
@@ -166,12 +197,6 @@ Citizen.CreateThread(function()
         end
     end
 end)
-
-taserItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
-end
-
-firearmsItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
-end
 
 RegisterCommand("geteup", function(source, args, rawCommand)
     local ped = PlayerPedId()

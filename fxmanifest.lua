@@ -11,11 +11,7 @@ lua54 'yes'
 server_script "server.lua"
 
 client_scripts {
-    "NativeUI.lua",
     "config.lua",
+    "NativeUI.lua",
     "menu.lua"
-}
-
-escrow_ignore {
-    'config.lua',
 }
