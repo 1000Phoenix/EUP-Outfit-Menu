@@ -11,6 +11,10 @@ config = {
     organizationsOrder = {"Police", "NHS"},
     organizations = {
         Police = {
+            extraCategories = {
+                Taser = "taserComponents",
+                Firearms = "firearmsComponents"
+            },
             departments = {
                 {
                     department = "Response Policing",

@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
---		    Don't touch if you don't know what you're doing.		  --
+--          Don't touch if you don't know what you're doing.          --
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 
@@ -25,16 +25,12 @@ local Texture = CreateRuntimeTextureFromDuiHandle(RuntimeTXD, 'Custom_Menu_Head'
 menuImage = "Custom_Menu_Head"
 
 _menuPool = NativeUI.CreatePool()
-mainMenu = NativeUI.CreateMenu()
-_menuPool:Remove()
-_menuPool = NativeUI.CreatePool()
 mainMenu = NativeUI.CreateMenu("", "", menuPosition.x, menuPosition.y, menuImage, menuImage)
 _menuPool:Add(mainMenu)
 mainMenu:SetMenuWidthOffset(menuWidth)
 collectgarbage()
 
-local taserItem = nil
-local firearmsItem = nil
+local categoryItems = {}
 
 function setEUP(outfit)
     local ped = PlayerPedId()
@@ -68,37 +64,29 @@ function setEUP(outfit)
         SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
     end
 
-    -- Conditional components for Taser
-    if taserItem.Checked and outfit.taserComponents then
-        for _, component in ipairs(outfit.taserComponents) do
-            SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
-        end
-    end
-
-    -- Conditional components for Firearms
-    if firearmsItem.Checked and outfit.firearmsComponents then
-        for _, component in ipairs(outfit.firearmsComponents) do
-            SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
+    -- Apply conditional components based on extra categories
+    for componentKey, checkboxItem in pairs(categoryItems) do
+        if checkboxItem.Checked and outfit[componentKey] then
+            for _, component in ipairs(outfit[componentKey]) do
+                SetPedComponentVariation(ped, component[1], component[2], component[3], 0)
+            end
         end
     end
 end
 
--- Set order for orgs
 local function getOrgOrder(orgName)
     for index, name in ipairs(config.organizationsOrder) do
         if name == orgName then
             return index
         end
     end
-    return 1000
+    return 1000  -- Return a large number for organizations not in the list
 end
-
 
 local sortedOrgNames = {}
 for orgName in pairs(config.organizations) do
     table.insert(sortedOrgNames, orgName)
 end
-
 
 table.sort(sortedOrgNames, function(a, b)
     return getOrgOrder(a) < getOrgOrder(b)
@@ -107,6 +95,19 @@ end)
 for _, orgName in ipairs(sortedOrgNames) do
     local orgData = config.organizations[orgName]
     local orgMenu = _menuPool:AddSubMenu(mainMenu, orgName, "", true, menuImage, menuImage)
+
+    -- Create checkboxes for extra categories specific to each organization
+    if orgData.extraCategories then
+        for categoryName, componentKey in pairs(orgData.extraCategories) do
+            local checkboxItem = NativeUI.CreateCheckboxItem(categoryName, false, "Equip with " .. categoryName)
+            checkboxItem.CheckboxEvent = function(sender, item, checked)
+                categoryItems[componentKey].Checked = checked
+            end
+            orgMenu:AddItem(checkboxItem)
+            categoryItems[componentKey] = checkboxItem
+        end
+    end
+
     for _, department in pairs(orgData.departments) do
         local departmentMenu = _menuPool:AddSubMenu(orgMenu, department.department, "", true, menuImage, menuImage)
         for _, sub in pairs(department.subMenus) do
@@ -133,18 +134,6 @@ for _, orgName in ipairs(sortedOrgNames) do
                     subMenu:AddItem(outfitItem)
                 end
             end
-        end
-    end
-    if orgName == "Police" then
-        taserItem = NativeUI.CreateCheckboxItem("Taser", false, "Equip with Taser")
-        firearmsItem = NativeUI.CreateCheckboxItem("Firearms", false, "Equip with Firearms")
-        
-        orgMenu:AddItem(taserItem)
-        orgMenu:AddItem(firearmsItem)
-
-        taserItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
-        end
-        firearmsItem.CheckboxEvent = function(index, checked) -- Optionally refresh the menu or handle changes immediately
         end
     end
 end
@@ -197,11 +186,3 @@ Citizen.CreateThread(function()
         end
     end
 end)
-
-RegisterCommand("geteup", function(source, args, rawCommand)
-    local ped = PlayerPedId()
-    local props = "props = {\n    {0, " .. GetPedPropIndex(ped, 0) + 1 .. ", " .. GetPedPropTextureIndex(ped, 0) .. "}, -- Hats\n    {1, " .. GetPedPropIndex(ped, 1) + 1 .. ", " .. GetPedPropTextureIndex(ped, 1) .. "}, -- Glasses\n    {6, " .. GetPedPropIndex(ped, 6) + 1 .. ", " .. GetPedPropTextureIndex(ped, 6) .. "} -- Watch\n},"
-    local components = "components = {\n    {1, " .. GetPedDrawableVariation(ped, 1) .. ", " .. GetPedTextureVariation(ped, 1) .. "}, -- Mask\n    {3, " .. GetPedDrawableVariation(ped, 3) .. ", " .. GetPedTextureVariation(ped, 3) .. "}, -- Upper body\n    {4, " .. GetPedDrawableVariation(ped, 4) .. ", " .. GetPedTextureVariation(ped, 4) .. "}, -- Legs / Pants\n    {5, " .. GetPedDrawableVariation(ped, 5) .. ", " .. GetPedTextureVariation(ped, 5) .. "}, -- Bags / Parachutes\n    {6, " .. GetPedDrawableVariation(ped, 6) .. ", " .. GetPedTextureVariation(ped, 6) .. "}, -- Shoes\n    {7, " .. GetPedDrawableVariation(ped, 7) .. ", " .. GetPedTextureVariation(ped, 7) .. "}, -- Neck / Scarfs\n    {8, " .. GetPedDrawableVariation(ped, 8) .. ", " .. GetPedTextureVariation(ped, 8) .. "}, -- Shirt / Accessory\n    {9, " .. GetPedDrawableVariation(ped, 9) .. ", " .. GetPedTextureVariation(ped, 9) .. "}, -- Body Armor\n    {10, " .. GetPedDrawableVariation(ped, 10) .. ", " .. GetPedTextureVariation(ped, 10) .. "}, -- Badges / Logos\n    {11, " .. GetPedDrawableVariation(ped, 11) .. ", " .. GetPedTextureVariation(ped, 11) .. "} -- Jackets\n},"
-    print(props .. "\n" .. components)
-    TriggerServerEvent("geteup", props, components)
-end, false)
